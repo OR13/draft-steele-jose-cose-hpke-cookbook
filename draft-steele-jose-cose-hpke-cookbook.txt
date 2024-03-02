@@ -1,0 +1,472 @@
+
+
+
+
+Javascript Object Signing and Encryption                       O. Steele
+Internet-Draft                                                 Transmute
+Intended status: Informational                              2 March 2024
+Expires: 3 September 2024
+
+
+                        JOSE-COSE HPKE Cookbook
+              draft-steele-jose-cose-hpke-cookbook-latest
+
+Abstract
+
+   This document contains a set of examples using JSON Object Signing
+   and Encryption (JOSE), CBOR Object Signing and Encryption (COSE) and
+   Hybrid Public Key Encryption (HPKE) to protect data.  These examples
+   are meant to coverage the edge cases of both JOSE and COSE, including
+   different structures for single and multiple recipients, external
+   additional authenticated data, and key derivation function (KDF)
+   context binding.
+
+About This Document
+
+   This note is to be removed before publishing as an RFC.
+
+   The latest revision of this draft can be found at
+   https://OR13.github.io/draft-steele-jose-cose-hpke-cookbook/draft-
+   steele-jose-cose-hpke-cookbook.html.  Status information for this
+   document may be found at https://datatracker.ietf.org/doc/draft-
+   steele-jose-cose-hpke-cookbook/.
+
+   Discussion of this document takes place on the Javascript Object
+   Signing and Encryption Working Group mailing list
+   (mailto:jose@ietf.org), which is archived at
+   https://mailarchive.ietf.org/arch/browse/jose/.  Subscribe at
+   https://www.ietf.org/mailman/listinfo/jose/.
+
+   Source for this draft and an issue tracker can be found at
+   https://github.com/OR13/draft-steele-jose-cose-hpke-cookbook.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 3 September 2024.
+
+Copyright Notice
+
+   Copyright (c) 2024 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction
+   2.  Terminology
+   3.  Overview
+     3.1.  Private Key
+       3.1.1.  application/jwk+json
+       3.1.2.  application/cose-key
+     3.2.  Direct Encryption
+       3.2.1.  application/jose+json
+       3.2.2.  application/cose
+     3.3.  Key Encryption
+       3.3.1.  application/jose+json
+       3.3.2.  application/cose
+   4.  Security Considerations
+   5.  IANA Considerations
+   6.  References
+     6.1.  Normative References
+     6.2.  Informative References
+   Acknowledgments
+   Author's Address
+
+1.  Introduction
+
+   This document is inspired by Examples of Protecting Content Using
+   JSON Object Signing and Encryption (JOSE) [RFC7520].
+
+   JOSE support for HPKE is described in
+   [I-D.draft-rha-jose-hpke-encrypt].
+
+   COSE support for HPKE is described in [I-D.draft-ietf-cose-hpke].
+
+   Both drafts are still work in progress.
+
+   The current set of examples are incomplete.
+
+2.  Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   The term "JSON Web Key (JWK)" is defined in [RFC7517].
+
+   The term "COSE Key" is defined in [RFC9052].
+
+   The terms "JSON Web Encryption (JWE)", "Direct Key Agreement", "Key
+   Agreement with Key Wrapping", "JWE Compact Serialization" and
+   "General JWE JSON Serialization" are defined in [RFC7516].
+
+   The terms "Direct Encryption", and "Key Agreement with Key Wrap" are
+   defined in [RFC9052].
+
+   The term "encapsulated key" is defined in [RFC9180].
+
+   This document does not define any new terms for JOSE or COSE.
+
+3.  Overview
+
+   Note that JSON (JavaScript Object Notation) and EDN (Extended
+   Diagnostic Notation) may not exactly match the bytes provided for
+   each example.
+
+   The hexadecimal encoded binary messages are the source of truth, the
+   JSON and EDN examples are for readability.
+
+   NOTE: '' line wrapping per [RFC8792] in HTTP examples.
+
+3.1.  Private Key
+
+   This section provides private key representations that are used
+   throught the following sections.
+
+   Public key representations for these keys are left as an excercise
+   for the reader.
+
+   The keys in this section are restricted to a single algorithm in both
+   JOSE and COSE: HPKE-Base-P256-SHA256-AES128GCM.
+
+   Additional algorithms and their private key representations may be
+   provided in future versions of this draft.
+
+3.1.1.  application/jwk+json
+
+   This section provides a JSON Web Key for HPKE-Base-
+   P256-SHA256-AES128GCM.
+
+ 7b0a2020226b6964223a202275726e3a696574663a706172616d733a6f617574683a6a\
+ 776b2d7468756d627072696e743a7368612d3235363a374a76784b756a755770596c4b\
+ 49455f75726479543749457165345030635a33476d3163364554526c5130222c0a2020\
+ 22616c67223a202248504b452d426173652d503235362d5348413235362d4145533132\
+ 3847434d222c0a2020226b7479223a20224543222c0a202022637276223a2022502d32\
+ 3536222c0a20202278223a2022646f37595f507a6f6c355f47326650686f50676f4f6f\
+ 306b6b34632d386745386952345958715449596d34222c0a20202279223a2022616b6a\
+ 4d396b56327a317057364b544c657148426b6d6d355332496d5f4f794f37526a527267\
+ 6d66316455222c0a20202264223a20224b583649304a7554664430467231703243646c\
+ 5239636f6e324851737759344673716a33437a533261704d220a7d
+
+                      Figure 1: JSON Web Key Bytes
+
+   {
+     "kid": "urn:ietf:params:oauth:jwk-thumbprint:sha-256:7JvxKujuWpYlKIE_urdyT7IEqe4P0cZ3Gm1c6ETRlQ0",
+     "alg": "HPKE-Base-P256-SHA256-AES128GCM",
+     "kty": "EC",
+     "crv": "P-256",
+     "x": "do7Y_Pzol5_G2fPhoPgoOo0kk4c-8gE8iR4YXqTIYm4",
+     "y": "akjM9kV2z1pW6KTLeqHBkmm5S2Im_OyO7RjRrgmf1dU",
+     "d": "KX6I0JuTfD0Fr1p2CdlR9con2HQswY4Fsqj3CzS2apM"
+   }
+
+                           Figure 2: JSON Web Key
+
+3.1.2.  application/cose-key
+
+   This section provides a COSE Key for HPKE-Base-P256-SHA256-AES128GCM.
+
+  a702784d75726e3a696574663a706172616d733a6f617574683a636b743a7368612d3\
+  235363a4b565f3339384668506158773761514d55595f4e5a497a7364416a7341544b\
+  7a73765a6f333058424e514d03182301022001215820768ed8fcfce8979fc6d9f3e1a\
+  0f8283a8d2493873ef2013c891e185ea4c8626e2258206a48ccf64576cf5a56e8a4cb\
+  7aa1c19269b94b6226fcec8eed18d1ae099fd5d5235820297e88d09b937c3d05af5a7\
+  609d951f5ca27d8742cc18e05b2a8f70b34b66a93
+
+                         Figure 3: COSE Key Bytes
+
+   {
+     / kid / 2: "urn:ietf:params:oauth:ckt:sha-256:KV_398FhPaXw7aQMUY_NZIzsdAjsATKzsvZo30XBNQM",
+     / alg: ES256 /  3: 35,
+     / kty: EC2   /  1: 2,
+     / crv: P-256 / -1: 1,
+     / x / -2: h'768ed8fcfce8979fc6d9f3e1a0f8283a8d2493873ef2013c891e185ea4c8626e',
+     / y / -3: h'6a48ccf64576cf5a56e8a4cb7aa1c19269b94b6226fcec8eed18d1ae099fd5d5',
+     / d / -4: h'297e88d09b937c3d05af5a7609d951f5ca27d8742cc18e05b2a8f70b34b66a93'
+   }
+
+                       Figure 4: COSE Key Diagnostic
+
+3.2.  Direct Encryption
+
+   JOSE and COSE HPKE both support a "Direct Encryption Mode", where
+   HPKE encrypt a plaintext message and optional additional
+   authenticated data directly to a recipient public key.
+
+   Note that HPKE Direct Encryption is not exactly the same as "Direct
+   Encryption" as described in [RFC7516] and [RFC9052].
+
+   In this section we provide direct encryption examples to the private
+   keys in the previous section.
+
+   ⌛ My lungs taste the air of Time Blown past falling sands ⌛
+
+                    Figure 5: Direct Encryption Message
+
+   ✨ It’s a dangerous business, Frodo, going out your door. ✨
+
+                      Figure 6: Direct Encryption AAD
+
+3.2.1.  application/jose+json
+
+ 7b0a20202270726f746563746564223a202265794a68624763694f694a6b615849694c\
+ 434a6c626d4d694f694a49554574464c554a6863325574554449314e69315453454579\
+ 4e545974515556544d54493452304e4e496977695a584272496a7037496d7430655349\
+ 36496b564c496977695a5773694f694a43526d466a593073795546687859586c615130\
+ 3078526b68366245307a4d6a46584e3268334d6a56485557677751544974616e426163\
+ 553479516e564654575253595746464d7a5a7856306b315a5446766346687161474e4f\
+ 56575234643164435a334e5a596b4e7056456f7a65453579537a5169665830222c0a20\
+ 2022616164223a20223470796f49456c30346f435a6379426849475268626d646c636d\
+ 39316379426964584e70626d567a63797767526e4a765a473873494764766157356e49\
+ 47393164434235623356794947527662334975494f4b637141222c0a20202263697068\
+ 657274657874223a20226449326b4b2d6634787634446d45647848706e4f474130732d\
+ 695f4338735059444d3674664a456f6a6c6b5351355865586f41755151566d587a6479\
+ 754c6255476a69416a6967744e3455414a556b556f2d55673430695771435632544662\
+ 326e586579566436456167220a7d
+
+                 Figure 7: JOSE Direct Encryption Bytes
+
+   {
+     "protected": "eyJhbGciOiJkaXIiLCJlbmMiOiJIUEtFLUJhc2UtUDI1Ni1TSEEyNTYtQUVTMTI4R0NNIiwiZXBrIjp7Imt0eSI6IkVLIiwiZWsiOiJCRmFjY0syUFhxYXlaQ00xRkh6bE0zMjFXN2h3MjVHUWgwQTItanBacU4yQnVFTWRSYWFFMzZxV0k1ZTFvcFhqaGNOVWR4d1dCZ3NZYkNpVEozeE5ySzQifX0",
+     "aad": "4pyoIEl04oCZcyBhIGRhbmdlcm91cyBidXNpbmVzcywgRnJvZG8sIGdvaW5nIG91dCB5b3VyIGRvb3IuIOKcqA",
+     "ciphertext": "dI2kK-f4xv4DmEdxHpnOGA0s-i_C8sPYDM6tfJEojlkSQ5XeXoAuQQVmXzdyuLbUGjiAjigtN4UAJUkUo-Ug40iWqCV2TFb2nXeyVd6Eag"
+   }
+
+                      Figure 8: JOSE Direct Encryption
+
+   {
+     "alg": "dir",
+     "enc": "HPKE-Base-P256-SHA256-AES128GCM",
+     "epk": {
+       "kty": "EK",
+       "ek": "BFaccK2PXqayZCM1FHzlM321W7hw25GQh0A2-jpZqN2BuEMdRaaE36qWI5e1opXjhcNUdxwWBgsYbCiTJ3xNrK4"
+     }
+   }
+
+         Figure 9: JOSE Direct Encryption Decoded Protected Header
+
+3.2.2.  application/cose
+
+  d08344a1011823a204784d75726e3a696574663a706172616d733a6f617574683a636\
+  b743a7368612d3235363a4b565f3339384668506158773761514d55595f4e5a497a73\
+  64416a7341544b7a73765a6f333058424e514d235841048024424acb8a77edfbc461b\
+  c4947e5d3ac3e5d31bc5f8a9fe71d0e4ef79f4b27943418a3817a14f6de06b43b98ce\
+  ac551d4cf47e888293a271a9117db7abf19a584f693181d2479aca080d3e71ce37624\
+  10665415cab2b831cac4fef97105cdec3b3a71de61019ceb0431d1637de54bab7f855\
+  fe8bae7bd9ba5cc12a20d458baf08f4cf861da4a831964745eceb97f3bbf
+
+                 Figure 10: COSE Direct Encryption Bytes
+
+   16([ / Single Recipient Encryption /
+     h'a1011823', / Protected Header
+     { / Unprotected Header /
+       / kid / 4: "urn:ietf:params:oauth:ckt:sha-256:KV_398FhPaXw7aQMUY_NZIzsdAjsATKzsvZo30XBNQM",
+       / ek / -4: h'048024424acb8a77edfbc461bc4947e5d3ac3e5d31bc5f8a9fe71d0e4ef79f4b27943418a3817a14f6de06b43b98ceac551d4cf47e888293a271a9117db7abf19a'
+     },
+     h'693181d2479aca080d3e71ce3762410665415cab2b831cac4fef97105cdec3b3a71de61019ceb0431d1637de54bab7f855fe8bae7bd9ba5cc12a20d458baf08f4cf861da4a831964745eceb97f3bbf'
+   ])
+
+                Figure 11: COSE Direct Encryption Diagnostic
+
+   Note that JOSE and COSE transport the encapsulated key "ek"
+   differently.
+
+3.3.  Key Encryption
+
+   JOSE and COSE HPKE both support a "Key Encryption Mode", where HPKE
+   encrypt a content encryption key to a recipient public key, and a
+   plaintext message and optional additional authenticated with the
+   content encryption key.
+
+   Note that HPKE Key Encryption Mode is not exactly the same as "Key
+   Agreement with Key Wrap" as described in [RFC7516] and [RFC9052].
+
+   In this section we provide direct encryption examples to the private
+   keys in the previous section.
+
+   ⌛ My lungs taste the air of Time Blown past falling sands ⌛
+
+                     Figure 12: Key Encryption Message
+
+   ✨ It’s a dangerous business, Frodo, going out your door. ✨
+
+                       Figure 13: Key Encryption AAD
+
+3.3.1.  application/jose+json
+
+  7b0a20202270726f746563746564223a202265794a6c626d4d694f694a424d5449345\
+  2304e4e496977695a584272496a7037496d743065534936496b564c496977695a5773\
+  694f694a43526b524862456f77533045774e3364305a454668543270445644557a564\
+  5314c546e4266595578504f4467794d30525954314d32533370525557396e63555256\
+  576a6832515768335355396e513035345a574d78545735575345563361556c4d4d6e7\
+  07963334a50526d786b5255746865453069665830222c0a202022656e637279707465\
+  645f6b6579223a202274774d563367697a4c7a5f74674455425831564b2d505a6a6b2\
+  d503737415845745442445a44444c423973222c0a2020226976223a20223178716256\
+  53586e6654524253675947222c0a20202263697068657274657874223a20225a5f546\
+  6517a684643355a2d394a2d4f6b41676632784535364d75584b5f6b69793569594935\
+  4a444e6c76474e794338534856754a7956346e5a6e7867396e624953525a7561477a7\
+  8594971355a745469614434222c0a202022746167223a202259696844336762695a69\
+  47624458662d5851434d7241222c0a202022616164223a20223470796f49456c30346\
+  f435a6379426849475268626d646c636d39316379426964584e70626d567a63797767\
+  526e4a765a473873494764766157356e4947393164434235623356794947527662334\
+  975494f4b637141220a7d
+
+                   Figure 14: JOSE Key Encryption Bytes
+
+   {
+     "protected": "eyJlbmMiOiJBMTI4R0NNIiwiZXBrIjp7Imt0eSI6IkVLIiwiZWsiOiJCRkRHbEowS0EwN3d0ZEFhT2pDVDUzVE1LTnBfYUxPODgyM0RYT1M2S3pRUW9ncURVWjh2QWh3SU9nQ054ZWMxTW5WSEV3aUlMMnpyc3JPRmxkRUtheE0ifX0",
+     "encrypted_key": "twMV3gizLz_tgDUBX1VK-PZjk-P77AXEtTBDZDDLB9s",
+     "iv": "1xqbVSXnfTRBSgYG",
+     "ciphertext": "Z_TfQzhFC5Z-9J-OkAgf2xE56MuXK_kiy5iYI5JDNlvGNyC8SHVuJyV4nZnxg9nbISRZuaGzxYIq5ZtTiaD4",
+     "tag": "YihD3gbiZiGbDXf-XQCMrA",
+     "aad": "4pyoIEl04oCZcyBhIGRhbmdlcm91cyBidXNpbmVzcywgRnJvZG8sIGdvaW5nIG91dCB5b3VyIGRvb3IuIOKcqA"
+   }
+
+                    Figure 15: JOSE Key Encryption JSON
+
+   {
+     "enc": "A128GCM",
+     "epk": {
+       "kty": "EK",
+       "ek": "BFDGlJ0KA07wtdAaOjCT53TMKNp_aLO8823DXOS6KzQQogqDUZ8vAhwIOgCNxec1MnVHEwiIL2zrsrOFldEKaxM"
+     }
+   }
+
+          Figure 16: JOSE Key Encryption Decoded Protected Header
+
+   Note that the ephemeral public key (epk) is present in the protected
+   header due to there only being a single recipient for this message.
+
+3.3.2.  application/cose
+
+  d8608443a10101a10550335552a987fd47dc85016ccc760bb541584fa0d7678a14400\
+  1cc48d1ff514545df9e0da6b696a8ed3bceb529b78ba86c26bef93767d07b0111a48e\
+  38dd79bfe9c351d6508ec2805b30ea16f6b46156e3ba9cffc11a39c311554970c7bda\
+  a40d4c1818344a1011823a204784d75726e3a696574663a706172616d733a6f617574\
+  683a636b743a7368612d3235363a4b565f3339384668506158773761514d55595f4e5\
+  a497a7364416a7341544b7a73765a6f333058424e514d235841044e733517b62d8cf9\
+  00d3d84606f8907bea0e3481c123359197782f0869b36c0efe13e76ae4740bcaf2f7a\
+  f1e03523efe1b98dc4b81a94d45d9dfea583ef14e0f582000871c2c5f6a8b73aab9cf\
+  df26953dc026036f00a08b61d903dd4a72e9c01229
+
+                   Figure 17: COSE Key Encryption Bytes
+
+   96([ / Multiple Recipient Encrypted Message /
+     h'a10101',  / Protected Header /
+     {
+       / IV / 5: h'335552a987fd47dc85016ccc760bb541'
+     },
+     / Ciphertext / h'a0d7678a144001cc48d1ff514545df9e0da6b696a8ed3bceb529b78ba86c26bef93767d07b0111a48e38dd79bfe9c351d6508ec2805b30ea16f6b46156e3ba9cffc11a39c311554970c7bdaa40d4c1',
+     [ / Recipients /
+       [ / Recipient 0 /
+         h'a1011823',  / Recipient Protected Header /
+         { / Recipient Unprotected Header /
+           / kid /  4: "urn:ietf:params:oauth:ckt:sha-256:KV_398FhPaXw7aQMUY_NZIzsdAjsATKzsvZo30XBNQM",
+           / ek  / -4: h'044e733517b62d8cf900d3d84606f8907bea0e3481c123359197782f0869b36c0efe13e76ae4740bcaf2f7af1e03523efe1b98dc4b81a94d45d9dfea583ef14e0f'
+         },
+         / encrypted key / h'00871c2c5f6a8b73aab9cfdf26953dc026036f00a08b61d903dd4a72e9c01229'
+       ]
+     ]
+   ])
+
+                 Figure 18: COSE Key Encryption Diagnostic
+
+4.  Security Considerations
+
+   TODO Security
+
+5.  IANA Considerations
+
+   This document has no IANA actions.
+
+6.  References
+
+6.1.  Normative References
+
+   [I-D.draft-ietf-cose-hpke]
+              Tschofenig, H., Steele, O., Daisuke, A., and L. Lundblade,
+              "Use of Hybrid Public-Key Encryption (HPKE) with CBOR
+              Object Signing and Encryption (COSE)", Work in Progress,
+              Internet-Draft, draft-ietf-cose-hpke-07, 22 October 2023,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-cose-
+              hpke-07>.
+
+   [I-D.draft-rha-jose-hpke-encrypt]
+              Reddy.K, T., Tschofenig, H., Banerjee, A., Steele, O., and
+              M. B. Jones, "Use of Hybrid Public-Key Encryption (HPKE)
+              with Javascript Object Signing and Encryption (JOSE)",
+              Work in Progress, Internet-Draft, draft-rha-jose-hpke-
+              encrypt-05, 2 March 2024,
+              <https://datatracker.ietf.org/doc/html/draft-rha-jose-
+              hpke-encrypt-05>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/rfc/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
+
+6.2.  Informative References
+
+   [RFC7516]  Jones, M. and J. Hildebrand, "JSON Web Encryption (JWE)",
+              RFC 7516, DOI 10.17487/RFC7516, May 2015,
+              <https://www.rfc-editor.org/rfc/rfc7516>.
+
+   [RFC7517]  Jones, M., "JSON Web Key (JWK)", RFC 7517,
+              DOI 10.17487/RFC7517, May 2015,
+              <https://www.rfc-editor.org/rfc/rfc7517>.
+
+   [RFC7520]  Miller, M., "Examples of Protecting Content Using JSON
+              Object Signing and Encryption (JOSE)", RFC 7520,
+              DOI 10.17487/RFC7520, May 2015,
+              <https://www.rfc-editor.org/rfc/rfc7520>.
+
+   [RFC8792]  Watsen, K., Auerswald, E., Farrel, A., and Q. Wu,
+              "Handling Long Lines in Content of Internet-Drafts and
+              RFCs", RFC 8792, DOI 10.17487/RFC8792, June 2020,
+              <https://www.rfc-editor.org/rfc/rfc8792>.
+
+   [RFC9052]  Schaad, J., "CBOR Object Signing and Encryption (COSE):
+              Structures and Process", STD 96, RFC 9052,
+              DOI 10.17487/RFC9052, August 2022,
+              <https://www.rfc-editor.org/rfc/rfc9052>.
+
+   [RFC9180]  Barnes, R., Bhargavan, K., Lipp, B., and C. Wood, "Hybrid
+              Public Key Encryption", RFC 9180, DOI 10.17487/RFC9180,
+              February 2022, <https://www.rfc-editor.org/rfc/rfc9180>.
+
+Acknowledgments
+
+   TODO acknowledge.
+
+Author's Address
+
+   Orie Steele
+   Transmute
+   Email: orie@transmute.industries
